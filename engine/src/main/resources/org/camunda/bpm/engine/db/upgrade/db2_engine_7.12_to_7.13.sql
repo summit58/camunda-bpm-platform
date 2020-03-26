@@ -52,5 +52,9 @@ create index ACT_IDX_AUTH_ROOT_PI on ACT_RU_AUTHORIZATION(ROOT_PROC_INST_ID_);
 
 
 -- https://jira.camunda.com/browse/CAM-10978
+
 ALTER TABLE ACT_RU_VARIABLE
   ADD PROC_DEF_ID_ varchar(64);
+
+ALTER TABLE ACT_HI_DETAIL
+  ADD INITIAL_ smallint check(INITIAL_ in (1,0));
