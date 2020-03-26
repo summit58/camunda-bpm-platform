@@ -42,6 +42,8 @@ public class HistoricVariableUpdateEventEntity extends HistoricDetailEventEntity
 
   protected String byteArrayId;
 
+  protected boolean isInitial;
+
   // getter / setters ////////////////////////////
 
   public String getSerializerName() {
@@ -111,6 +113,14 @@ public class HistoricVariableUpdateEventEntity extends HistoricDetailEventEntity
     this.scopeActivityInstanceId = scopeActivityInstanceId;
   }
 
+  public void setInitial(boolean isInitial) {
+    this.isInitial = isInitial;
+  }
+
+  public boolean isInitial() {
+    return isInitial;
+  }
+
   @Override
   public String toString() {
     return this.getClass().getSimpleName()
@@ -133,6 +143,7 @@ public class HistoricVariableUpdateEventEntity extends HistoricDetailEventEntity
            + ", taskId=" + taskId
            + ", timestamp=" + timestamp
            + ", tenantId=" + tenantId
+           + ", isInitial=" + isInitial
            + "]";
   }
 
