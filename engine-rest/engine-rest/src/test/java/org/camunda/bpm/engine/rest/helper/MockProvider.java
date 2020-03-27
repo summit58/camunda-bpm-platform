@@ -2343,7 +2343,8 @@ public abstract class MockProvider {
         .caseDefinitionId(EXAMPLE_HISTORIC_VAR_UPDATE_CASE_DEF_ID)
         .caseInstanceId(EXAMPLE_HISTORIC_VAR_UPDATE_CASE_INST_ID)
         .caseExecutionId(EXAMPLE_HISTORIC_VAR_UPDATE_CASE_EXEC_ID)
-        .tenantId(tenantId);
+        .tenantId(tenantId)
+        .initial(false);
   }
 
   public static HistoricFormField createMockHistoricFormField() {
