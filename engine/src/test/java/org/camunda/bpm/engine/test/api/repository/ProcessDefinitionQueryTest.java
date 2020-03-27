@@ -30,6 +30,7 @@ import org.junit.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.util.Date;
 import java.util.List;
 
 
@@ -37,6 +38,8 @@ import java.util.List;
  * @author Joram Barrez
  */
 public class ProcessDefinitionQueryTest extends AbstractDefinitionQueryTest {
+
+  private static final String THIRD_DEPLOYMENT_NAME = "thirdDeployment";
 
   private String deploymentThreeId;
 
@@ -54,7 +57,7 @@ public class ProcessDefinitionQueryTest extends AbstractDefinitionQueryTest {
 
   @Before
   public void setUp() throws Exception {
-    deploymentThreeId = repositoryService.createDeployment().name("thirdDeployment").addClasspathResource(getResourceThreePath()).deploy().getId();
+    deploymentThreeId = repositoryService.createDeployment().name(THIRD_DEPLOYMENT_NAME).addClasspathResource(getResourceThreePath()).deploy().getId();
   }
 
   @After
@@ -106,6 +109,36 @@ public class ProcessDefinitionQueryTest extends AbstractDefinitionQueryTest {
 
     exceptionRule.expect(ProcessEngineException.class);
     repositoryService.createProcessDefinitionQuery().deploymentId(null);
+  }
+
+  @Test
+  public void testQueryByDeploymentTimeAfter() {
+    List<Deployment> deployments = repositoryService.createDeploymentQuery().list();
+
+    for (Deployment deployment : deployments) {
+      List<ProcessDefinition> processDefinitions = repositoryService.createProcessDefinitionQuery().deployedAfter(deployment.getDeploymentTime()).list();
+      for (ProcessDefinition processDefinition : processDefinitions) {
+        Deployment singleDeployment = repositoryService.createDeploymentQuery().deploymentId(processDefinition.getDeploymentId()).singleResult();
+        // all results should have a later deployment time than the one used in the query
+        assertThat(singleDeployment.getDeploymentTime()).isAfter(deployment.getDeploymentTime());
+      }
+    }
+  }
+
+  @Test
+  public void testQueryByDeploymentTimeAt() {
+    Deployment firstDeployment = repositoryService.createDeploymentQuery().deploymentName(FIRST_DEPLOYMENT_NAME).singleResult();
+    Deployment secondDeployment = repositoryService.createDeploymentQuery().deploymentName(SECOND_DEPLOYMENT_NAME).singleResult();
+    Deployment thirdDeployment = repositoryService.createDeploymentQuery().deploymentName(THIRD_DEPLOYMENT_NAME).singleResult();
+
+    ProcessDefinitionQuery query = repositoryService.createProcessDefinitionQuery().deployedAt(firstDeployment.getDeploymentTime());
+    verifyQueryResults(query, 2);
+
+    query = repositoryService.createProcessDefinitionQuery().deployedAt(secondDeployment.getDeploymentTime());
+    verifyQueryResults(query, 1);
+
+    query = repositoryService.createProcessDefinitionQuery().deployedAt(thirdDeployment.getDeploymentTime());
+    verifyQueryResults(query, 1);
   }
 
   @Test
@@ -697,6 +730,22 @@ public class ProcessDefinitionQueryTest extends AbstractDefinitionQueryTest {
       .count()).isEqualTo(4);
   }
 
+  @Test
+  public void testQueryOrderByDeployTime() {
+    List<ProcessDefinition> processDefinitions = repositoryService.createProcessDefinitionQuery().orderByDeploymentTime().asc().list();
+    Date lastDeployTime = null;
+    for (ProcessDefinition processDefinition : processDefinitions) {
+      Deployment deployment = repositoryService.createDeploymentQuery().deploymentId(processDefinition.getDeploymentId()).singleResult();
+      if (lastDeployTime == null) {
+        lastDeployTime = deployment.getDeploymentTime();
+      } else {
+        assertThat(lastDeployTime).isBeforeOrEqualsTo(deployment.getDeploymentTime());
+        lastDeployTime = deployment.getDeploymentTime();
+      }
+    }
+  }
+
+  @Test
   @org.camunda.bpm.engine.test.Deployment(resources={
     "org/camunda/bpm/engine/test/api/repository/failingProcessCreateOneIncident.bpmn20.xml",
     "org/camunda/bpm/engine/test/api/repository/VersionTagTest.testParsingVersionTag.bpmn20.xml"
