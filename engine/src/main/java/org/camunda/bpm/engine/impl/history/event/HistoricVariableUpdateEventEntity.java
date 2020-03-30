@@ -42,7 +42,7 @@ public class HistoricVariableUpdateEventEntity extends HistoricDetailEventEntity
 
   protected String byteArrayId;
 
-  protected Boolean isInitial;
+  protected Boolean isInitial = false;
 
   // getter / setters ////////////////////////////
 
