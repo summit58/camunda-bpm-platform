@@ -19,6 +19,7 @@ package org.camunda.bpm.engine.test.api.repository;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 
 import org.camunda.bpm.engine.RepositoryService;
@@ -26,7 +27,7 @@ import org.camunda.bpm.engine.exception.NotValidException;
 import org.camunda.bpm.engine.repository.DecisionDefinition;
 import org.camunda.bpm.engine.repository.DecisionDefinitionQuery;
 import org.camunda.bpm.engine.repository.DecisionRequirementsDefinition;
-import org.camunda.bpm.engine.test.Deployment;
+import org.camunda.bpm.engine.repository.Deployment;
 import org.camunda.bpm.engine.test.ProcessEngineRule;
 import org.camunda.bpm.engine.test.util.ProcessEngineTestRule;
 import org.camunda.bpm.engine.test.util.ProvidedProcessEngineRule;
@@ -138,7 +139,7 @@ public class DecisionDefinitionQueryTest {
   }
 
   @Test
-	public void queryByInvalidDeploymentId() {
+  public void queryByInvalidDeploymentId() {
     DecisionDefinitionQuery query = repositoryService.createDecisionDefinitionQuery();
 
    query
@@ -148,6 +149,36 @@ public class DecisionDefinitionQueryTest {
 
     exceptionRule.expect(NotValidException.class);
     query.deploymentId(null);
+  }
+
+  @Test
+  public void queryByDeploymentTimeAfter() {
+    List<Deployment> deployments = repositoryService.createDeploymentQuery().list();
+
+    for (Deployment deployment : deployments) {
+      List<DecisionDefinition> decisionDefinitions = repositoryService.createDecisionDefinitionQuery().deployedAfter(deployment.getDeploymentTime()).list();
+      for (DecisionDefinition decisionDefinition : decisionDefinitions) {
+        Deployment singleDeployment = repositoryService.createDeploymentQuery().deploymentId(decisionDefinition.getDeploymentId()).singleResult();
+        // all results should have a later deployment time than the one used in the query
+        assertThat(singleDeployment.getDeploymentTime()).isAfter(deployment.getDeploymentTime());
+      }
+    }
+  }
+
+  @Test
+  public void queryByDeploymentTimeAt() {
+    Deployment firstDeployment = repositoryService.createDeploymentQuery().deploymentId(firstDeploymentId).singleResult();
+    Deployment secondDeployment = repositoryService.createDeploymentQuery().deploymentId(secondDeploymentId).singleResult();
+    Deployment thirdDeployment = repositoryService.createDeploymentQuery().deploymentId(thirdDeploymentId).singleResult();
+
+    DecisionDefinitionQuery query = repositoryService.createDecisionDefinitionQuery().deployedAt(firstDeployment.getDeploymentTime());
+    verifyQueryResults(query, 2);
+
+    query = repositoryService.createDecisionDefinitionQuery().deployedAt(secondDeployment.getDeploymentTime());
+    verifyQueryResults(query, 1);
+
+    query = repositoryService.createDecisionDefinitionQuery().deployedAt(thirdDeployment.getDeploymentTime());
+    verifyQueryResults(query, 1);
   }
 
   @Test
@@ -189,7 +220,7 @@ public class DecisionDefinitionQueryTest {
   }
 
   @Test
-	public void queryByInvalidNameLike() {
+  public void queryByInvalidNameLike() {
     DecisionDefinitionQuery query = repositoryService.createDecisionDefinitionQuery();
 
     query.decisionDefinitionNameLike("%invalid%");
@@ -356,7 +387,7 @@ public class DecisionDefinitionQueryTest {
   }
 
   @Test
-	public void queryByLatest() {
+  public void queryByLatest() {
     DecisionDefinitionQuery query = repositoryService.createDecisionDefinitionQuery();
 
     query.latestVersion();
@@ -449,7 +480,7 @@ public class DecisionDefinitionQueryTest {
   }
 
   @Test
-	public void querySorting() {
+  public void querySorting() {
     DecisionDefinitionQuery query = repositoryService.createDecisionDefinitionQuery();
 
     // asc
@@ -535,7 +566,7 @@ public class DecisionDefinitionQueryTest {
     assertThat(query.list().size()).isEqualTo(expectedCount);
   }
 
-  @Deployment(resources = {
+  @org.camunda.bpm.engine.test.Deployment(resources = {
     "org/camunda/bpm/engine/test/api/repository/versionTag.dmn",
     "org/camunda/bpm/engine/test/api/repository/versionTagHigher.dmn" })
   @Test
@@ -575,6 +606,21 @@ public class DecisionDefinitionQueryTest {
     assertThat(lastTwoResults).extracting("id").containsExactlyInAnyOrderElementsOf(scoreDefinitionIds);
   }
 
+  @Test
+  public void testQueryOrderByDeployTime() {
+    List<DecisionDefinition> decisionDefinitions = repositoryService.createDecisionDefinitionQuery().orderByDeploymentTime().asc().list();
+    Date lastDeployTime = null;
+    for (DecisionDefinition decisionDefinition : decisionDefinitions) {
+      Deployment deployment = repositoryService.createDeploymentQuery().deploymentId(decisionDefinition.getDeploymentId()).singleResult();
+      if (lastDeployTime == null) {
+        lastDeployTime = deployment.getDeploymentTime();
+      } else {
+        assertThat(lastDeployTime).isBeforeOrEqualsTo(deployment.getDeploymentTime());
+        lastDeployTime = deployment.getDeploymentTime();
+      }
+    }
+  }
+
   protected String[] merge(List<String> list1, List<String> list2) {
     int numElements = list1.size() + list2.size();
     List<String> copy = new ArrayList<>(numElements);
@@ -593,7 +639,7 @@ public class DecisionDefinitionQueryTest {
     return ids;
   }
 
-  @Deployment(resources = {
+  @org.camunda.bpm.engine.test.Deployment(resources = {
     "org/camunda/bpm/engine/test/api/repository/versionTag.dmn",
     "org/camunda/bpm/engine/test/api/repository/versionTagHigher.dmn" })
   @Test
@@ -607,7 +653,7 @@ public class DecisionDefinitionQueryTest {
     assertThat(decisionDefinition.getVersionTag()).isEqualTo("1.0.0");
   }
 
-  @Deployment(resources = {
+  @org.camunda.bpm.engine.test.Deployment(resources = {
     "org/camunda/bpm/engine/test/api/repository/versionTag.dmn",
     "org/camunda/bpm/engine/test/api/repository/versionTagHigher.dmn" })
   @Test
