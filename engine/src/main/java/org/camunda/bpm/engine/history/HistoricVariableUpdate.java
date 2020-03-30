@@ -64,5 +64,5 @@ public interface HistoricVariableUpdate extends HistoricDetail {
   /**
    * @return true if the detail historic variable update is created during the process instance start
    */
-  boolean isInitial();
+  Boolean isInitial();
 }

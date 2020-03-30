@@ -42,7 +42,7 @@ public class HistoricVariableUpdateEventEntity extends HistoricDetailEventEntity
 
   protected String byteArrayId;
 
-  protected boolean isInitial;
+  protected Boolean isInitial;
 
   // getter / setters ////////////////////////////
 
@@ -113,11 +113,11 @@ public class HistoricVariableUpdateEventEntity extends HistoricDetailEventEntity
     this.scopeActivityInstanceId = scopeActivityInstanceId;
   }
 
-  public void setInitial(boolean isInitial) {
+  public void setInitial(Boolean isInitial) {
     this.isInitial = isInitial;
   }
 
-  public boolean isInitial() {
+  public Boolean isInitial() {
     return isInitial;
   }
 
