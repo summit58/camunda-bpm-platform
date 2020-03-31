@@ -30,81 +30,96 @@ import javax.script.ScriptEngineManager;
  */
 public class ScriptEngineResolver {
 
-  protected final ScriptEngineManager scriptEngineManager;
+    protected final ScriptEngineManager scriptEngineManager;
 
-  protected Map<String, ScriptEngine> cachedEngines = new HashMap<String, ScriptEngine>();
+    protected Map<String, ScriptEngine> cachedEngines = new HashMap<String, ScriptEngine>();
 
-  public ScriptEngineResolver(ScriptEngineManager scriptEngineManager) {
-    this.scriptEngineManager = scriptEngineManager;
-  }
-
-  public void addScriptEngineFactory(ScriptEngineFactory scriptEngineFactory) {
-    scriptEngineManager.registerEngineName(scriptEngineFactory.getEngineName(), scriptEngineFactory);
-  }
-
-  public ScriptEngineManager getScriptEngineManager() {
-    return scriptEngineManager;
-  }
-
-
-  /**
-   * Returns a cached script engine or creates a new script engine if no such engine is currently cached.
-   *
-   * @param language the language (such as 'groovy' for the script engine)
-   * @return the cached engine or null if no script engine can be created for the given language
-   */
-  public ScriptEngine getScriptEngine(String language, boolean resolveFromCache) {
-
-    ScriptEngine scriptEngine = null;
-
-    if (resolveFromCache) {
-      scriptEngine = cachedEngines.get(language);
-
-      if(scriptEngine == null) {
-        scriptEngine = scriptEngineManager.getEngineByName(language);
-
-        if(scriptEngine != null) {
-
-          if(ScriptingEngines.GROOVY_SCRIPTING_LANGUAGE.equals(language)) {
-            configureGroovyScriptEngine(scriptEngine);
-          }
-
-          if(isCachable(scriptEngine)) {
-            cachedEngines.put(language, scriptEngine);
-          }
-
-        }
-
-      }
-
-    } else {
-      scriptEngine = scriptEngineManager.getEngineByName(language);
+    public ScriptEngineResolver1(ScriptEngineManager scriptEngineManager) {
+        this.scriptEngineManager = scriptEngineManager;
     }
 
-    return scriptEngine;
-  }
+    public void addScriptEngineFactory(ScriptEngineFactory scriptEngineFactory) {
+        scriptEngineManager.registerEngineName(scriptEngineFactory.getEngineName(), scriptEngineFactory);
+    }
 
-  /**
-   * Allows checking whether the script engine can be cached.
-   *
-   * @param scriptEngine the script engine to check.
-   * @return true if the script engine may be cached.
-   */
-  protected boolean isCachable(ScriptEngine scriptEngine) {
-    // Check if script-engine supports multithreading. If true it can be cached.
-    Object threadingParameter = scriptEngine.getFactory().getParameter("THREADING");
-    return threadingParameter != null;
-  }
+    public ScriptEngineManager getScriptEngineManager() {
+        return scriptEngineManager;
+    }
 
-  /**
-   * Allows providing custom configuration for the groovy script engine.
-   * @param scriptEngine the groovy script engine to configure.
-   */
-  protected void configureGroovyScriptEngine(ScriptEngine scriptEngine) {
 
-    // make sure Groovy compiled scripts only hold weak references to java methods
-    scriptEngine.getContext().setAttribute("#jsr223.groovy.engine.keep.globals", "weak", ScriptContext.ENGINE_SCOPE);
-  }
+    /**
+     * Returns a cached script engine or creates a new script engine if no such engine is currently cached.
+     *
+     * @param language the language (such as 'groovy' for the script engine)
+     * @return the cached engine or null if no script engine can be created for the given language
+     */
+    public ScriptEngine getScriptEngine(String language, boolean resolveFromCache) {
+
+        ScriptEngine scriptEngine = null;
+
+        if (resolveFromCache) {
+            scriptEngine = cachedEngines.get(language);
+
+            if(scriptEngine == null) {
+                scriptEngine = scriptEngineManager.getEngineByName(language);
+
+                if(scriptEngine != null) {
+
+                    if(ScriptingEngines.GROOVY_SCRIPTING_LANGUAGE.equals(language)) {
+                        configureGroovyScriptEngine(scriptEngine);
+                    }
+                    else if(language.toLowerCase().equals("graal.js") ||
+                            language.toLowerCase().equals("javascript") ||
+                            language.toLowerCase().equals("ecmascript")) {
+                        configureGraalJSScriptEngine(scriptEngine);
+                    }
+
+                    if(isCachable(scriptEngine)) {
+                        cachedEngines.put(language, scriptEngine);
+                    }
+
+                }
+
+            }
+
+        } else {
+            scriptEngine = scriptEngineManager.getEngineByName(language);
+        }
+
+        return scriptEngine;
+    }
+
+    /**
+     * Allows checking whether the script engine can be cached.
+     *
+     * @param scriptEngine the script engine to check.
+     * @return true if the script engine may be cached.
+     */
+    protected boolean isCachable(ScriptEngine scriptEngine) {
+        // Check if script-engine supports multithreading. If true it can be cached.
+        Object threadingParameter = scriptEngine.getFactory().getParameter("THREADING");
+        return threadingParameter != null;
+    }
+
+    /**
+     * Allows providing custom configuration for the groovy script engine.
+     * @param scriptEngine the groovy script engine to configure.
+     */
+    protected void configureGroovyScriptEngine(ScriptEngine scriptEngine) {
+
+        // make sure Groovy compiled scripts only hold weak references to java methods
+        scriptEngine.getContext().setAttribute("#jsr223.groovy.engine.keep.globals", "weak", ScriptContext.ENGINE_SCOPE);
+    }
+
+    /**
+     * Allows providing custom configuration for the GraalVM (graal.js) script engine.
+     * @param scriptEngine the GraalVM script engine to configure.
+     */
+    protected void configureGraalJSScriptEngine(ScriptEngine scriptEngine) {
+        //Allow GraalVM (graal.js) to access the host and to lookup classes.
+        scriptEngine.getContext().setAttribute("polyglot.js.allowHostAccess", true, ScriptContext.ENGINE_SCOPE);
+        scriptEngine.getContext().setAttribute("polyglot.js.allowHostClassLookup", true, ScriptContext.ENGINE_SCOPE);
+    }
 
 
 }
