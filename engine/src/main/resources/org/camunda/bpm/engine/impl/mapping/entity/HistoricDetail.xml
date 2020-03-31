@@ -264,7 +264,7 @@
     <result property="tenantId" column="TENANT_ID_" jdbcType="VARCHAR" />
     <result property="userOperationId" column="OPERATION_ID_" jdbcType="VARCHAR" />
     <result property="removalTime" column="REMOVAL_TIME_" jdbcType="TIMESTAMP"/>
-    <result property="initial" column="INITIAL_" jdbcType="BOOLEAN"/>
+    <result property="initial" column="INITIAL_" javaType="java.lang.Boolean" jdbcType="BOOLEAN"/>
     <discriminator javaType="string" column="TYPE_">
       <case value="VariableUpdate" resultMap="historicVariableUpdateResultMap"/>
       <case value="FormProperty" resultMap="historicFormPropertyResultMap"/>
