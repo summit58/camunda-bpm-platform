@@ -24,6 +24,7 @@ import javax.script.CompiledScript;
 import javax.script.ScriptEngine;
 import javax.script.ScriptException;
 
+import org.camunda.bpm.application.ProcessApplicationUnavailableException;
 import org.camunda.bpm.dmn.engine.impl.CachedCompiledScriptSupport;
 import org.camunda.bpm.dmn.engine.impl.CachedExpressionSupport;
 import org.camunda.bpm.dmn.engine.impl.DefaultDmnEngineConfiguration;
@@ -34,141 +35,187 @@ import org.camunda.bpm.dmn.engine.impl.spi.el.DmnScriptEngineResolver;
 import org.camunda.bpm.dmn.engine.impl.spi.el.ElExpression;
 import org.camunda.bpm.dmn.engine.impl.spi.el.ElProvider;
 import org.camunda.bpm.dmn.feel.impl.FeelEngine;
+import org.camunda.bpm.engine.impl.context.Context;
 import org.camunda.bpm.engine.variable.context.VariableContext;
+import org.camunda.commons.utils.IoUtil;
 import org.camunda.commons.utils.StringUtil;
+
+import java.io.InputStream;
 
 public class ExpressionEvaluationHandler {
 
-  protected static final DmnEngineLogger LOG = DmnEngineLogger.ENGINE_LOGGER;
+    protected static final DmnEngineLogger LOG = DmnEngineLogger.ENGINE_LOGGER;
 
-  protected final DmnScriptEngineResolver scriptEngineResolver;
-  protected final ElProvider elProvider;
-  protected final FeelEngine feelEngine;
+    protected final DmnScriptEngineResolver scriptEngineResolver;
+    protected final ElProvider elProvider;
+    protected final FeelEngine feelEngine;
 
-  public ExpressionEvaluationHandler(DefaultDmnEngineConfiguration configuration) {
-    this.scriptEngineResolver = configuration.getScriptEngineResolver();
-    this.elProvider = configuration.getElProvider();
-    this.feelEngine = configuration.getFeelEngine();
-  }
+    private final String JS_GLOBAL_FILENAME = "dmnGlobal.js";
+    private final String JS_APP_FILENAME = "dmn.js";
 
-  public Object evaluateExpression(String expressionLanguage, DmnExpressionImpl expression, VariableContext variableContext) {
-    String expressionText = getExpressionTextForLanguage(expression, expressionLanguage);
-    if (expressionText != null) {
-
-      if (isFeelExpressionLanguage(expressionLanguage)) {
-        return evaluateFeelSimpleExpression(expressionText, variableContext);
-
-      } else if (isElExpression(expressionLanguage)) {
-        return evaluateElExpression(expressionLanguage, expressionText, variableContext, expression);
-
-      } else {
-        return evaluateScriptExpression(expressionLanguage, variableContext, expressionText, expression);
-      }
-    } else {
-      return null;
+    public ExpressionEvaluationHandler(DefaultDmnEngineConfiguration configuration) {
+        this.scriptEngineResolver = configuration.getScriptEngineResolver();
+        this.elProvider = configuration.getElProvider();
+        this.feelEngine = configuration.getFeelEngine();
     }
-  }
 
-  protected Object evaluateScriptExpression(String expressionLanguage, VariableContext variableContext, String expressionText, CachedCompiledScriptSupport cachedCompiledScriptSupport) {
-    ScriptEngine scriptEngine = getScriptEngineForName(expressionLanguage);
-    // wrap script engine bindings + variable context and pass enhanced
-    // bindings to the script engine.
-    Bindings bindings = VariableContextScriptBindings.wrap(scriptEngine.createBindings(), variableContext);
-    bindings.put("variableContext", variableContext);
+    public Object evaluateExpression(String expressionLanguage, DmnExpressionImpl expression, VariableContext variableContext) {
+        String expressionText = getExpressionTextForLanguage(expression, expressionLanguage);
+        if (expressionText != null) {
 
-    try {
-      if (scriptEngine instanceof Compilable) {
+            if (isFeelExpressionLanguage(expressionLanguage)) {
+                return evaluateFeelSimpleExpression(expressionText, variableContext);
 
-        CompiledScript compiledScript = cachedCompiledScriptSupport.getCachedCompiledScript();
-        if (compiledScript == null) {
-          synchronized (cachedCompiledScriptSupport) {
-            compiledScript = cachedCompiledScriptSupport.getCachedCompiledScript();
+            } else if (isElExpression(expressionLanguage)) {
+                return evaluateElExpression(expressionLanguage, expressionText, variableContext, expression);
 
-            if(compiledScript == null) {
-              Compilable compilableScriptEngine = (Compilable) scriptEngine;
-              compiledScript = compilableScriptEngine.compile(expressionText);
-
-              cachedCompiledScriptSupport.cacheCompiledScript(compiledScript);
+            } else {
+                return evaluateScriptExpression(expressionLanguage, variableContext, expressionText, expression);
             }
-          }
+        } else {
+            return null;
+        }
+    }
+
+    private String augmentExpressionText(String expressionText) {
+        //First, we'll pull the JavaScript from the process application using the application's classloader.
+        //  NOTE: If this is not called from within the context of an application, we won't be able to
+        //    load any application-specific JavaScript.
+        //  NOTE: This has been confirmed to work in Tomcat if the file is placed in the application's
+        //    "classes" directory.
+        try {
+            InputStream dmnJSPrefix = Context.getCurrentProcessApplication().getProcessApplication()
+                    .getProcessApplicationClassloader().getResourceAsStream(JS_APP_FILENAME);
+            String dmnJSPrefixString = "";
+            if(dmnJSPrefix != null)
+                dmnJSPrefixString = IoUtil.inputStreamAsString(dmnJSPrefix);
+            expressionText = dmnJSPrefixString + expressionText;
+        }
+        catch(ProcessApplicationUnavailableException pauEx){
+            //Do nothing; the process application is unavailable, so we can't load the JavaScript.
+        }
+        catch(NullPointerException npEx) {
+            //Do nothing; this call was made from outside of the context of an application, so we can't
+            //  load any process application-specific JavaScript.
         }
 
-        return compiledScript.eval(bindings);
-      }
-      else {
-        return scriptEngine.eval(expressionText, bindings);
-      }
-    }
-    catch (ScriptException e) {
-      throw LOG.unableToEvaluateExpression(expressionText, scriptEngine.getFactory().getLanguageName(), e);
-    }
-  }
+        //Second, we'll pull the JavaScript from the global file using this class' classloader.
+        //  NOTE: This has been confirmed to work in Tomcat if the file is placed in the Tomcat "lib"
+        //    folder.
+        InputStream dmnJSGlobalPrefix = ExpressionEvaluationHandler.class
+                .getClassLoader().getResourceAsStream(JS_GLOBAL_FILENAME);
+        String dmnJSGlobalPrefixString = "";
+        if(dmnJSGlobalPrefix != null)
+            dmnJSGlobalPrefixString = IoUtil.inputStreamAsString(dmnJSGlobalPrefix);
+        expressionText = dmnJSGlobalPrefixString + expressionText;
 
-  protected Object evaluateElExpression(String expressionLanguage, String expressionText, VariableContext variableContext, CachedExpressionSupport cachedExpressionSupport) {
-    try {
-      ElExpression elExpression = cachedExpressionSupport.getCachedExpression();
-
-      if (elExpression == null) {
-        synchronized (cachedExpressionSupport) {
-          elExpression = cachedExpressionSupport.getCachedExpression();
-          if(elExpression == null) {
-            elExpression = elProvider.createExpression(expressionText);
-            cachedExpressionSupport.setCachedExpression(elExpression);
-          }
-        }
-      }
-
-      return elExpression.getValue(variableContext);
-    }
-    // yes, we catch all exceptions
-    catch(Exception e) {
-      throw LOG.unableToEvaluateExpression(expressionText, expressionLanguage, e);
-    }
-  }
-
-  protected Object evaluateFeelSimpleExpression(String expressionText, VariableContext variableContext) {
-    return feelEngine.evaluateSimpleExpression(expressionText, variableContext);
-  }
-
-  // helper ///////////////////////////////////////////////////////////////////
-
-  protected String getExpressionTextForLanguage(DmnExpressionImpl expression, String expressionLanguage) {
-    String expressionText = expression.getExpression();
-    if (expressionText != null) {
-      if (isJuelExpression(expressionLanguage) && !StringUtil.isExpression(expressionText)) {
-        return "${" + expressionText + "}";
-      } else {
+        //Return the resulting expressionText for evaluation.
         return expressionText;
-      }
-    } else {
-      return null;
     }
-  }
 
-  private boolean isJuelExpression(String expressionLanguage) {
-    return DefaultDmnEngineConfiguration.JUEL_EXPRESSION_LANGUAGE.equalsIgnoreCase(expressionLanguage);
-  }
+    protected Object evaluateScriptExpression(String expressionLanguage, VariableContext variableContext, String expressionText, CachedCompiledScriptSupport cachedCompiledScriptSupport) {
+        ScriptEngine scriptEngine = getScriptEngineForName(expressionLanguage);
+        // wrap script engine bindings + variable context and pass enhanced
+        // bindings to the script engine.
+        Bindings bindings = VariableContextScriptBindings.wrap(scriptEngine.createBindings(), variableContext);
+        bindings.put("variableContext", variableContext);
 
-  protected ScriptEngine getScriptEngineForName(String expressionLanguage) {
-    ensureNotNull("expressionLanguage", expressionLanguage);
-    ScriptEngine scriptEngine = scriptEngineResolver.getScriptEngineForLanguage(expressionLanguage);
-    if (scriptEngine != null) {
-      return scriptEngine;
+        //Augment the expression text with JavaScript additions.
+        expressionText = augmentExpressionText(expressionText);
 
-    } else {
-      throw LOG.noScriptEngineFoundForLanguage(expressionLanguage);
+        try {
+            if (scriptEngine instanceof Compilable) {
+
+                CompiledScript compiledScript = cachedCompiledScriptSupport.getCachedCompiledScript();
+                if (compiledScript == null) {
+                    synchronized (cachedCompiledScriptSupport) {
+                        compiledScript = cachedCompiledScriptSupport.getCachedCompiledScript();
+
+                        if(compiledScript == null) {
+                            Compilable compilableScriptEngine = (Compilable) scriptEngine;
+                            compiledScript = compilableScriptEngine.compile(expressionText);
+
+                            cachedCompiledScriptSupport.cacheCompiledScript(compiledScript);
+                        }
+                    }
+                }
+
+                return compiledScript.eval(bindings);
+            }
+            else {
+                return scriptEngine.eval(expressionText, bindings);
+            }
+        }
+        catch (ScriptException e) {
+            throw LOG.unableToEvaluateExpression(expressionText, scriptEngine.getFactory().getLanguageName(), e);
+        }
     }
-  }
 
-  protected boolean isElExpression(String expressionLanguage) {
-    return isJuelExpression(expressionLanguage);
-  }
+    protected Object evaluateElExpression(String expressionLanguage, String expressionText, VariableContext variableContext, CachedExpressionSupport cachedExpressionSupport) {
+        try {
+            ElExpression elExpression = cachedExpressionSupport.getCachedExpression();
 
-  public boolean isFeelExpressionLanguage(String expressionLanguage) {
-    ensureNotNull("expressionLanguage", expressionLanguage);
-    return expressionLanguage.equals(DefaultDmnEngineConfiguration.FEEL_EXPRESSION_LANGUAGE) ||
-      expressionLanguage.toLowerCase().equals(DefaultDmnEngineConfiguration.FEEL_EXPRESSION_LANGUAGE_ALTERNATIVE) ||
-      expressionLanguage.equals(DefaultDmnEngineConfiguration.FEEL_EXPRESSION_LANGUAGE_DMN12);
-  }
+            if (elExpression == null) {
+                synchronized (cachedExpressionSupport) {
+                    elExpression = cachedExpressionSupport.getCachedExpression();
+                    if(elExpression == null) {
+                        elExpression = elProvider.createExpression(expressionText);
+                        cachedExpressionSupport.setCachedExpression(elExpression);
+                    }
+                }
+            }
+
+            return elExpression.getValue(variableContext);
+        }
+        // yes, we catch all exceptions
+        catch(Exception e) {
+            throw LOG.unableToEvaluateExpression(expressionText, expressionLanguage, e);
+        }
+    }
+
+    protected Object evaluateFeelSimpleExpression(String expressionText, VariableContext variableContext) {
+        return feelEngine.evaluateSimpleExpression(expressionText, variableContext);
+    }
+
+    // helper ///////////////////////////////////////////////////////////////////
+
+    protected String getExpressionTextForLanguage(DmnExpressionImpl expression, String expressionLanguage) {
+        String expressionText = expression.getExpression();
+        if (expressionText != null) {
+            if (isJuelExpression(expressionLanguage) && !StringUtil.isExpression(expressionText)) {
+                return "${" + expressionText + "}";
+            } else {
+                return expressionText;
+            }
+        } else {
+            return null;
+        }
+    }
+
+    private boolean isJuelExpression(String expressionLanguage) {
+        return DefaultDmnEngineConfiguration.JUEL_EXPRESSION_LANGUAGE.equalsIgnoreCase(expressionLanguage);
+    }
+
+    protected ScriptEngine getScriptEngineForName(String expressionLanguage) {
+        ensureNotNull("expressionLanguage", expressionLanguage);
+        ScriptEngine scriptEngine = scriptEngineResolver.getScriptEngineForLanguage(expressionLanguage);
+        if (scriptEngine != null) {
+            return scriptEngine;
+
+        } else {
+            throw LOG.noScriptEngineFoundForLanguage(expressionLanguage);
+        }
+    }
+
+    protected boolean isElExpression(String expressionLanguage) {
+        return isJuelExpression(expressionLanguage);
+    }
+
+    public boolean isFeelExpressionLanguage(String expressionLanguage) {
+        ensureNotNull("expressionLanguage", expressionLanguage);
+        return expressionLanguage.equals(DefaultDmnEngineConfiguration.FEEL_EXPRESSION_LANGUAGE) ||
+                expressionLanguage.toLowerCase().equals(DefaultDmnEngineConfiguration.FEEL_EXPRESSION_LANGUAGE_ALTERNATIVE) ||
+                expressionLanguage.equals(DefaultDmnEngineConfiguration.FEEL_EXPRESSION_LANGUAGE_DMN12);
+    }
 
 }
