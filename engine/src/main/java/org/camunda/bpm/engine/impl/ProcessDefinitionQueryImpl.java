@@ -320,7 +320,7 @@ public class ProcessDefinitionQueryImpl extends AbstractQuery<ProcessDefinitionQ
 
   public ProcessDefinitionQuery orderByDeploymentTime() {
     shouldJoinDeploymentTable = true;
-    return orderBy(new JoinedQueryOrderingProperty(QueryOrderingProperty.RELATION_DEPLOYMENT, ProcessDefinitionQueryProperty.DEPLOY_TIME));
+    return orderBy(new QueryOrderingProperty(QueryOrderingProperty.RELATION_DEPLOYMENT, ProcessDefinitionQueryProperty.DEPLOY_TIME));
   }
 
   public ProcessDefinitionQuery orderByProcessDefinitionKey() {

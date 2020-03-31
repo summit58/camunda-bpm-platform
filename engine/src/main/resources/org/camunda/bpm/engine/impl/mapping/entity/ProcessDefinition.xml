@@ -202,10 +202,8 @@
     <include refid="org.camunda.bpm.engine.impl.persistence.entity.Commons.bindOrderBy"/>
     ${limitBefore}
     select ${distinct} RES.*
-    <if test="shouldJoinDeploymentTable">
-      , DEP.DEPLOY_TIME_
-    </if>
     ${limitBetween}
+    <include refid="org.camunda.bpm.engine.impl.persistence.entity.Commons.orderBySelection"/>
     <include refid="selectProcessDefinitionsByQueryCriteriaSql"/>
     ${orderBy}
     ${limitAfter}
@@ -431,7 +429,7 @@
     ${orderBy}
     ${limitAfter}
   </select>
-
+  
   <!-- mysql specific sql -->
   <select id="selectProcessDefinitionCountByQueryCriteria_mysql" parameterType="org.camunda.bpm.engine.impl.ProcessDefinitionQueryImpl" resultType="long">
     ${countDistinctBeforeStart} RES.ID_ ${countDistinctBeforeEnd}
