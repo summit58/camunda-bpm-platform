@@ -26,6 +26,7 @@ import javax.script.ScriptEngineManager;
 
 /**
  * @author Thorben Lindhauer
+ * @author Ryan Johnston
  *
  */
 public class ScriptEngineResolver {
@@ -34,7 +35,7 @@ public class ScriptEngineResolver {
 
     protected Map<String, ScriptEngine> cachedEngines = new HashMap<String, ScriptEngine>();
 
-    public ScriptEngineResolver1(ScriptEngineManager scriptEngineManager) {
+    public ScriptEngineResolver(ScriptEngineManager scriptEngineManager) {
         this.scriptEngineManager = scriptEngineManager;
     }
 
