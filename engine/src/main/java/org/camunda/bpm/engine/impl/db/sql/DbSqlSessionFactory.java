@@ -334,7 +334,7 @@ public class DbSqlSessionFactory implements SessionFactory {
     constants = new HashMap<>();
     constants.put("constant.event", "'event'");
     constants.put("constant.op_message", "NEW_VALUE_ || '_|_' || PROPERTY_");
-    constants.put("constant_for_update", "for update");
+    constants.put("constant_for_update", "");
     constants.put("constant.datepart.quarter", "QUARTER");
     constants.put("constant.datepart.month", "MONTH");
     constants.put("constant.datepart.minute", "MINUTE");
