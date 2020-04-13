@@ -51,107 +51,131 @@ import org.camunda.bpm.engine.impl.context.Context;
  */
 public class ScriptingEngines implements DmnScriptEngineResolver {
 
-  public static final String DEFAULT_SCRIPTING_LANGUAGE = "juel";
-  public static final String GROOVY_SCRIPTING_LANGUAGE = "groovy";
+    public static final String DEFAULT_SCRIPTING_LANGUAGE = "juel";
+    public static final String GROOVY_SCRIPTING_LANGUAGE = "groovy";
 
-  protected ScriptEngineResolver scriptEngineResolver;
-  protected ScriptBindingsFactory scriptBindingsFactory;
+    protected ScriptEngineResolver scriptEngineResolver;
+    protected ScriptBindingsFactory scriptBindingsFactory;
 
-  protected boolean enableScriptEngineCaching = true;
+    protected boolean enableScriptEngineCaching = true;
 
-  public ScriptingEngines(ScriptBindingsFactory scriptBindingsFactory) {
-    this(new ScriptEngineManager());
-    this.scriptBindingsFactory = scriptBindingsFactory;
-  }
+    /**
+     * Enables the loading of ECMAScript from files when using GraalVM (as of co.summit58.bpmn:camunda-engine:7.12.2).
+     */
+    protected boolean enableScriptIO = false;
 
-  public ScriptingEngines(ScriptEngineManager scriptEngineManager) {
-    this.scriptEngineResolver = new ScriptEngineResolver(scriptEngineManager);
-  }
-
-  public boolean isEnableScriptEngineCaching() {
-    return enableScriptEngineCaching;
-  }
-
-  public void setEnableScriptEngineCaching(boolean enableScriptEngineCaching) {
-    this.enableScriptEngineCaching = enableScriptEngineCaching;
-  }
-
-  public ScriptEngineManager getScriptEngineManager() {
-    return scriptEngineResolver.getScriptEngineManager();
-  }
-
-  public ScriptingEngines addScriptEngineFactory(ScriptEngineFactory scriptEngineFactory) {
-    scriptEngineResolver.addScriptEngineFactory(scriptEngineFactory);
-    return this;
-  }
-
-  /**
-   * Loads the given script engine by language name. Will throw an exception if no script engine can be loaded for the given language name.
-   *
-   * @param language the name of the script language to lookup an implementation for
-   * @return the script engine
-   * @throws ProcessEngineException if no such engine can be found.
-   */
-  public ScriptEngine getScriptEngineForLanguage(String language) {
-
-    if (language != null) {
-      language = language.toLowerCase();
+    public ScriptingEngines(ScriptBindingsFactory scriptBindingsFactory) {
+        this(new ScriptEngineManager());
+        this.scriptBindingsFactory = scriptBindingsFactory;
     }
 
-    ProcessApplicationReference pa = Context.getCurrentProcessApplication();
-    ProcessEngineConfigurationImpl config = Context.getProcessEngineConfiguration();
-
-    ScriptEngine engine = null;
-    if (config.isEnableFetchScriptEngineFromProcessApplication()) {
-      if(pa != null) {
-        engine = getPaScriptEngine(language, pa);
-      }
+    public ScriptingEngines(ScriptEngineManager scriptEngineManager) {
+        this.scriptEngineResolver = new ScriptEngineResolver(scriptEngineManager);
     }
 
-    if(engine == null) {
-      engine = getGlobalScriptEngine(language);
+    public boolean isEnableScriptEngineCaching() {
+        return enableScriptEngineCaching;
     }
 
-    return engine;
-  }
-
-  protected ScriptEngine getPaScriptEngine(String language, ProcessApplicationReference pa) {
-    try {
-      ProcessApplicationInterface processApplication = pa.getProcessApplication();
-      ProcessApplicationInterface rawObject = processApplication.getRawObject();
-
-      if (rawObject instanceof AbstractProcessApplication) {
-        AbstractProcessApplication abstractProcessApplication = (AbstractProcessApplication) rawObject;
-        return abstractProcessApplication.getScriptEngineForName(language, enableScriptEngineCaching);
-      }
-      return null;
+    /**
+     * If set to true, scripts can be loaded from IO when using GraalVM.
+     *
+     * @since 7.12.2 (co.summit58.bpmn:camunda-engine)
+     * @return True if scripts can be loaded from IO when using GraalVM, false otherwise.
+     */
+    public boolean isEnableScriptIO() {
+        return enableScriptIO;
     }
-    catch (ProcessApplicationUnavailableException e) {
-      throw new ProcessEngineException("Process Application is unavailable.", e);
+
+    public void setEnableScriptEngineCaching(boolean enableScriptEngineCaching) {
+        this.enableScriptEngineCaching = enableScriptEngineCaching;
     }
-  }
 
-  protected ScriptEngine getGlobalScriptEngine(String language) {
+    /**
+     * If set to true, scripts can be loaded from IO when using GraalVM.
+     *
+     * @since 7.12.2 (co.summit58.bpmn:camunda-engine)
+     */
+    public void setEnableScriptIO(boolean enableScriptIO) {
+        this.enableScriptIO = enableScriptIO;
+    }
 
-    ScriptEngine scriptEngine = scriptEngineResolver.getScriptEngine(language, enableScriptEngineCaching);
+    public ScriptEngineManager getScriptEngineManager() {
+        return scriptEngineResolver.getScriptEngineManager();
+    }
 
-    ensureNotNull("Can't find scripting engine for '" + language + "'", "scriptEngine", scriptEngine);
+    public ScriptingEngines addScriptEngineFactory(ScriptEngineFactory scriptEngineFactory) {
+        scriptEngineResolver.addScriptEngineFactory(scriptEngineFactory);
+        return this;
+    }
 
-    return scriptEngine;
-  }
+    /**
+     * Loads the given script engine by language name. Will throw an exception if no script engine can be loaded for the given language name.
+     *
+     * @param language the name of the script language to lookup an implementation for
+     * @return the script engine
+     * @throws ProcessEngineException if no such engine can be found.
+     */
+    public ScriptEngine getScriptEngineForLanguage(String language) {
 
-  /** override to build a spring aware ScriptingEngines
-   * @param engineBindin
-   * @param scriptEngine */
-  public Bindings createBindings(ScriptEngine scriptEngine, VariableScope variableScope) {
-    return scriptBindingsFactory.createBindings(variableScope, scriptEngine.createBindings());
-  }
+        if (language != null) {
+            language = language.toLowerCase();
+        }
 
-  public ScriptBindingsFactory getScriptBindingsFactory() {
-    return scriptBindingsFactory;
-  }
+        ProcessApplicationReference pa = Context.getCurrentProcessApplication();
+        ProcessEngineConfigurationImpl config = Context.getProcessEngineConfiguration();
 
-  public void setScriptBindingsFactory(ScriptBindingsFactory scriptBindingsFactory) {
-    this.scriptBindingsFactory = scriptBindingsFactory;
-  }
+        ScriptEngine engine = null;
+        if (config.isEnableFetchScriptEngineFromProcessApplication()) {
+            if(pa != null) {
+                engine = getPaScriptEngine(language, pa);
+            }
+        }
+
+        if(engine == null) {
+            engine = getGlobalScriptEngine(language);
+        }
+
+        return engine;
+    }
+
+    protected ScriptEngine getPaScriptEngine(String language, ProcessApplicationReference pa) {
+        try {
+            ProcessApplicationInterface processApplication = pa.getProcessApplication();
+            ProcessApplicationInterface rawObject = processApplication.getRawObject();
+
+            if (rawObject instanceof AbstractProcessApplication) {
+                AbstractProcessApplication abstractProcessApplication = (AbstractProcessApplication) rawObject;
+                return abstractProcessApplication.getScriptEngineForName(language, enableScriptEngineCaching, enableScriptIO);
+            }
+            return null;
+        }
+        catch (ProcessApplicationUnavailableException e) {
+            throw new ProcessEngineException("Process Application is unavailable.", e);
+        }
+    }
+
+    protected ScriptEngine getGlobalScriptEngine(String language) {
+
+        ScriptEngine scriptEngine = scriptEngineResolver.getScriptEngine(language, enableScriptEngineCaching, enableScriptIO);
+
+        ensureNotNull("Can't find scripting engine for '" + language + "'", "scriptEngine", scriptEngine);
+
+        return scriptEngine;
+    }
+
+    /** override to build a spring aware ScriptingEngines
+     * @param engineBindin
+     * @param scriptEngine */
+    public Bindings createBindings(ScriptEngine scriptEngine, VariableScope variableScope) {
+        return scriptBindingsFactory.createBindings(variableScope, scriptEngine.createBindings());
+    }
+
+    public ScriptBindingsFactory getScriptBindingsFactory() {
+        return scriptBindingsFactory;
+    }
+
+    public void setScriptBindingsFactory(ScriptBindingsFactory scriptBindingsFactory) {
+        this.scriptBindingsFactory = scriptBindingsFactory;
+    }
 }

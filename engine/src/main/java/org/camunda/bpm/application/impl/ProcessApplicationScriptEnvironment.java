@@ -33,47 +33,47 @@ import org.camunda.bpm.engine.impl.scripting.engine.ScriptEngineResolver;
  */
 public class ProcessApplicationScriptEnvironment {
 
-  protected ProcessApplicationInterface processApplication;
+    protected ProcessApplicationInterface processApplication;
 
-  protected ScriptEngineResolver processApplicationScriptEngineResolver;
-  protected Map<String, List<ExecutableScript>> environmentScripts = new HashMap<String, List<ExecutableScript>>();
+    protected ScriptEngineResolver processApplicationScriptEngineResolver;
+    protected Map<String, List<ExecutableScript>> environmentScripts = new HashMap<String, List<ExecutableScript>>();
 
-  public ProcessApplicationScriptEnvironment(ProcessApplicationInterface processApplication) {
-    this.processApplication = processApplication;
-  }
-
-  /**
-   * <p>Returns an instance of {@link ScriptEngine} for the given <code>scriptEngineName</code>.</p>
-   *
-   * <p>Iff the given parameter <code>cache</code> is set <code>true</code>,
-   * then the instance {@link ScriptEngine} will be cached.</p>
-   *
-   * @param scriptEngineName the name of the {@link ScriptEngine} to return
-   * @param cache a boolean value which indicates whether the {@link ScriptEngine} should
-   *              be cached or not.
-   *
-   * @return a {@link ScriptEngine}
-   */
-  public ScriptEngine getScriptEngineForName(String scriptEngineName, boolean cache) {
-    if(processApplicationScriptEngineResolver == null) {
-      synchronized (this) {
-        if(processApplicationScriptEngineResolver == null) {
-          processApplicationScriptEngineResolver = new ScriptEngineResolver(new ScriptEngineManager(getProcessApplicationClassloader()));
-        }
-      }
+    public ProcessApplicationScriptEnvironment(ProcessApplicationInterface processApplication) {
+        this.processApplication = processApplication;
     }
-    return processApplicationScriptEngineResolver.getScriptEngine(scriptEngineName, cache);
-  }
 
-  /**
-   * Returns a map of cached environment scripts per script language.
-   */
-  public Map<String, List<ExecutableScript>> getEnvironmentScripts() {
-    return environmentScripts;
-  }
+    /**
+     * <p>Returns an instance of {@link ScriptEngine} for the given <code>scriptEngineName</code>.</p>
+     *
+     * <p>Iff the given parameter <code>cache</code> is set <code>true</code>,
+     * then the instance {@link ScriptEngine} will be cached.</p>
+     *
+     * @param scriptEngineName the name of the {@link ScriptEngine} to return
+     * @param cache a boolean value which indicates whether the {@link ScriptEngine} should
+     *              be cached or not.
+     *
+     * @return a {@link ScriptEngine}
+     */
+    public ScriptEngine getScriptEngineForName(String scriptEngineName, boolean cache, boolean enableScriptIO) {
+        if(processApplicationScriptEngineResolver == null) {
+            synchronized (this) {
+                if(processApplicationScriptEngineResolver == null) {
+                    processApplicationScriptEngineResolver = new ScriptEngineResolver(new ScriptEngineManager(getProcessApplicationClassloader()));
+                }
+            }
+        }
+        return processApplicationScriptEngineResolver.getScriptEngine(scriptEngineName, cache, enableScriptIO);
+    }
 
-  protected ClassLoader getProcessApplicationClassloader() {
-    return processApplication.getProcessApplicationClassloader();
-  }
+    /**
+     * Returns a map of cached environment scripts per script language.
+     */
+    public Map<String, List<ExecutableScript>> getEnvironmentScripts() {
+        return environmentScripts;
+    }
+
+    protected ClassLoader getProcessApplicationClassloader() {
+        return processApplication.getProcessApplicationClassloader();
+    }
 
 }

@@ -54,7 +54,7 @@ public class ScriptEngineResolver {
      * @param language the language (such as 'groovy' for the script engine)
      * @return the cached engine or null if no script engine can be created for the given language
      */
-    public ScriptEngine getScriptEngine(String language, boolean resolveFromCache) {
+    public ScriptEngine getScriptEngine(String language, boolean resolveFromCache, boolean enableScriptIO) {
 
         ScriptEngine scriptEngine = null;
 
@@ -72,7 +72,7 @@ public class ScriptEngineResolver {
                     else if(language.toLowerCase().equals("graal.js") ||
                             language.toLowerCase().equals("javascript") ||
                             language.toLowerCase().equals("ecmascript")) {
-                        configureGraalJSScriptEngine(scriptEngine);
+                        configureGraalJSScriptEngine(scriptEngine, enableScriptIO);
                     }
 
                     if(isCachable(scriptEngine)) {
@@ -116,10 +116,14 @@ public class ScriptEngineResolver {
      * Allows providing custom configuration for the GraalVM (graal.js) script engine.
      * @param scriptEngine the GraalVM script engine to configure.
      */
-    protected void configureGraalJSScriptEngine(ScriptEngine scriptEngine) {
+    protected void configureGraalJSScriptEngine(ScriptEngine scriptEngine, boolean enableScriptIO) {
         //Allow GraalVM (graal.js) to access the host and to lookup classes.
         scriptEngine.getContext().setAttribute("polyglot.js.allowHostAccess", true, ScriptContext.ENGINE_SCOPE);
         scriptEngine.getContext().setAttribute("polyglot.js.allowHostClassLookup", true, ScriptContext.ENGINE_SCOPE);
+
+        //Allow for the loading of ECMAScript from local files if "enableScriptIO" is set to true.
+        if(enableScriptIO)
+            scriptEngine.getContext().setAttribute("polyglot.js.allowIO", true, ScriptContext.ENGINE_SCOPE);
     }
 
 

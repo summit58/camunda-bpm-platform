@@ -44,207 +44,207 @@ import java.util.concurrent.Callable;
  */
 public abstract class AbstractProcessApplication implements ProcessApplicationInterface {
 
-  private static ProcessApplicationLogger LOG = ProcessEngineLogger.PROCESS_APPLICATION_LOGGER;
+    private static ProcessApplicationLogger LOG = ProcessEngineLogger.PROCESS_APPLICATION_LOGGER;
 
-  protected ELResolver processApplicationElResolver;
-  protected BeanELResolver processApplicationBeanElResolver;
-  protected ProcessApplicationScriptEnvironment processApplicationScriptEnvironment;
+    protected ELResolver processApplicationElResolver;
+    protected BeanELResolver processApplicationBeanElResolver;
+    protected ProcessApplicationScriptEnvironment processApplicationScriptEnvironment;
 
-  protected VariableSerializers variableSerializers;
+    protected VariableSerializers variableSerializers;
 
-  protected boolean isDeployed = false;
+    protected boolean isDeployed = false;
 
-  protected String defaultDeployToEngineName = ProcessEngines.NAME_DEFAULT;
+    protected String defaultDeployToEngineName = ProcessEngines.NAME_DEFAULT;
 
-  // deployment /////////////////////////////////////////////////////
+    // deployment /////////////////////////////////////////////////////
 
-  public void deploy() {
-    if (isDeployed) {
-      LOG.alreadyDeployed();
-    } else {
-      // deploy the application
-      RuntimeContainerDelegate.INSTANCE.get().deployProcessApplication(this);
-      isDeployed = true;
-    }
-  }
-
-  public void undeploy() {
-    if (!isDeployed) {
-      LOG.notDeployed();
-    } else {
-      // delegate stopping of the process application to the runtime container.
-      RuntimeContainerDelegate.INSTANCE.get().undeployProcessApplication(this);
-      isDeployed = false;
-    }
-  }
-
-  public void createDeployment(String processArchiveName, DeploymentBuilder deploymentBuilder) {
-    // default implementation does nothing
-  }
-
-  // Runtime ////////////////////////////////////////////
-
-  public String getName() {
-    Class<? extends AbstractProcessApplication> processApplicationClass = getClass();
-    String name = null;
-
-    ProcessApplication annotation = processApplicationClass.getAnnotation(ProcessApplication.class);
-    if (annotation != null) {
-      name = annotation.value();
-
-      if (name == null || name.length() == 0) {
-        name = annotation.name();
-      }
+    public void deploy() {
+        if (isDeployed) {
+            LOG.alreadyDeployed();
+        } else {
+            // deploy the application
+            RuntimeContainerDelegate.INSTANCE.get().deployProcessApplication(this);
+            isDeployed = true;
+        }
     }
 
-
-    if (name == null || name.length() == 0) {
-      name = autodetectProcessApplicationName();
+    public void undeploy() {
+        if (!isDeployed) {
+            LOG.notDeployed();
+        } else {
+            // delegate stopping of the process application to the runtime container.
+            RuntimeContainerDelegate.INSTANCE.get().undeployProcessApplication(this);
+            isDeployed = false;
+        }
     }
 
-    return name;
-  }
-
-  /**
-   * Override this method to autodetect an application name in case the
-   * {@link ProcessApplication} annotation was used but without parameter.
-   */
-  protected abstract String autodetectProcessApplicationName();
-
-  public <T> T execute(Callable<T> callable) throws ProcessApplicationExecutionException {
-    ClassLoader originalClassloader = ClassLoaderUtil.getContextClassloader();
-    ClassLoader processApplicationClassloader = getProcessApplicationClassloader();
-
-    try {
-      ClassLoaderUtil.setContextClassloader(processApplicationClassloader);
-
-      return callable.call();
-
-    } catch (Exception e) {
-      throw LOG.processApplicationExecutionException(e);
-    } finally {
-      ClassLoaderUtil.setContextClassloader(originalClassloader);
+    public void createDeployment(String processArchiveName, DeploymentBuilder deploymentBuilder) {
+        // default implementation does nothing
     }
-  }
 
-  public <T> T execute(Callable<T> callable, InvocationContext invocationContext) throws ProcessApplicationExecutionException {
-    // allows to hook into the invocation
-    return execute(callable);
-  }
+    // Runtime ////////////////////////////////////////////
 
-  public ClassLoader getProcessApplicationClassloader() {
-    // the default implementation uses the classloader that loaded
-    // the application-provided subclass of this class.
-    return ClassLoaderUtil.getClassloader(getClass());
-  }
+    public String getName() {
+        Class<? extends AbstractProcessApplication> processApplicationClass = getClass();
+        String name = null;
 
-  public ProcessApplicationInterface getRawObject() {
-    return this;
-  }
+        ProcessApplication annotation = processApplicationClass.getAnnotation(ProcessApplication.class);
+        if (annotation != null) {
+            name = annotation.value();
 
-  public Map<String, String> getProperties() {
-    return Collections.<String, String>emptyMap();
-  }
+            if (name == null || name.length() == 0) {
+                name = annotation.name();
+            }
+        }
 
-  public ELResolver getElResolver() {
-    if (processApplicationElResolver == null) {
-      synchronized (this) {
+
+        if (name == null || name.length() == 0) {
+            name = autodetectProcessApplicationName();
+        }
+
+        return name;
+    }
+
+    /**
+     * Override this method to autodetect an application name in case the
+     * {@link ProcessApplication} annotation was used but without parameter.
+     */
+    protected abstract String autodetectProcessApplicationName();
+
+    public <T> T execute(Callable<T> callable) throws ProcessApplicationExecutionException {
+        ClassLoader originalClassloader = ClassLoaderUtil.getContextClassloader();
+        ClassLoader processApplicationClassloader = getProcessApplicationClassloader();
+
+        try {
+            ClassLoaderUtil.setContextClassloader(processApplicationClassloader);
+
+            return callable.call();
+
+        } catch (Exception e) {
+            throw LOG.processApplicationExecutionException(e);
+        } finally {
+            ClassLoaderUtil.setContextClassloader(originalClassloader);
+        }
+    }
+
+    public <T> T execute(Callable<T> callable, InvocationContext invocationContext) throws ProcessApplicationExecutionException {
+        // allows to hook into the invocation
+        return execute(callable);
+    }
+
+    public ClassLoader getProcessApplicationClassloader() {
+        // the default implementation uses the classloader that loaded
+        // the application-provided subclass of this class.
+        return ClassLoaderUtil.getClassloader(getClass());
+    }
+
+    public ProcessApplicationInterface getRawObject() {
+        return this;
+    }
+
+    public Map<String, String> getProperties() {
+        return Collections.<String, String>emptyMap();
+    }
+
+    public ELResolver getElResolver() {
         if (processApplicationElResolver == null) {
-          processApplicationElResolver = initProcessApplicationElResolver();
+            synchronized (this) {
+                if (processApplicationElResolver == null) {
+                    processApplicationElResolver = initProcessApplicationElResolver();
+                }
+            }
         }
-      }
+        return processApplicationElResolver;
+
     }
-    return processApplicationElResolver;
 
-  }
-
-  public BeanELResolver getBeanElResolver() {
-    if (processApplicationBeanElResolver == null) {
-      synchronized (this) {
+    public BeanELResolver getBeanElResolver() {
         if (processApplicationBeanElResolver == null) {
-          processApplicationBeanElResolver = new BeanELResolver();
+            synchronized (this) {
+                if (processApplicationBeanElResolver == null) {
+                    processApplicationBeanElResolver = new BeanELResolver();
+                }
+            }
         }
-      }
+        return processApplicationBeanElResolver;
     }
-    return processApplicationBeanElResolver;
-  }
 
-  /**
-   * <p>Initializes the process application provided ElResolver. This implementation uses the
-   * Java SE {@link ServiceLoader} facilities for resolving implementations of {@link ProcessApplicationElResolver}.</p>
-   * <p>
-   * <p>If you want to provide a custom implementation in your application, place a file named
-   * <code>META-INF/org.camunda.bpm.application.ProcessApplicationElResolver</code> inside your application
-   * which contains the fully qualified classname of your implementation. Or simply override this method.</p>
-   *
-   * @return the process application ElResolver.
-   */
-  protected ELResolver initProcessApplicationElResolver() {
+    /**
+     * <p>Initializes the process application provided ElResolver. This implementation uses the
+     * Java SE {@link ServiceLoader} facilities for resolving implementations of {@link ProcessApplicationElResolver}.</p>
+     * <p>
+     * <p>If you want to provide a custom implementation in your application, place a file named
+     * <code>META-INF/org.camunda.bpm.application.ProcessApplicationElResolver</code> inside your application
+     * which contains the fully qualified classname of your implementation. Or simply override this method.</p>
+     *
+     * @return the process application ElResolver.
+     */
+    protected ELResolver initProcessApplicationElResolver() {
 
-    return DefaultElResolverLookup.lookupResolver(this);
+        return DefaultElResolverLookup.lookupResolver(this);
 
-  }
+    }
 
-  public ExecutionListener getExecutionListener() {
-    return null;
-  }
+    public ExecutionListener getExecutionListener() {
+        return null;
+    }
 
-  public TaskListener getTaskListener() {
-    return null;
-  }
+    public TaskListener getTaskListener() {
+        return null;
+    }
 
-  /**
-   * see {@link ProcessApplicationScriptEnvironment#getScriptEngineForName(String, boolean)}
-   */
-  public ScriptEngine getScriptEngineForName(String name, boolean cache) {
-    return getProcessApplicationScriptEnvironment().getScriptEngineForName(name, cache);
-  }
+    /**
+     * see {@link ProcessApplicationScriptEnvironment#getScriptEngineForName(String, boolean)}
+     */
+    public ScriptEngine getScriptEngineForName(String name, boolean cache, boolean enableScriptIO) {
+        return getProcessApplicationScriptEnvironment().getScriptEngineForName(name, cache, enableScriptIO);
+    }
 
-  /**
-   * see {@link ProcessApplicationScriptEnvironment#getEnvironmentScripts()}
-   */
-  public Map<String, List<ExecutableScript>> getEnvironmentScripts() {
-    return getProcessApplicationScriptEnvironment().getEnvironmentScripts();
-  }
+    /**
+     * see {@link ProcessApplicationScriptEnvironment#getEnvironmentScripts()}
+     */
+    public Map<String, List<ExecutableScript>> getEnvironmentScripts() {
+        return getProcessApplicationScriptEnvironment().getEnvironmentScripts();
+    }
 
-  protected ProcessApplicationScriptEnvironment getProcessApplicationScriptEnvironment() {
-    if (processApplicationScriptEnvironment == null) {
-      synchronized (this) {
+    protected ProcessApplicationScriptEnvironment getProcessApplicationScriptEnvironment() {
         if (processApplicationScriptEnvironment == null) {
-          processApplicationScriptEnvironment = new ProcessApplicationScriptEnvironment(this);
+            synchronized (this) {
+                if (processApplicationScriptEnvironment == null) {
+                    processApplicationScriptEnvironment = new ProcessApplicationScriptEnvironment(this);
+                }
+            }
         }
-      }
+        return processApplicationScriptEnvironment;
     }
-    return processApplicationScriptEnvironment;
-  }
 
-  public VariableSerializers getVariableSerializers() {
-    return variableSerializers;
-  }
+    public VariableSerializers getVariableSerializers() {
+        return variableSerializers;
+    }
 
-  public void setVariableSerializers(VariableSerializers variableSerializers) {
-    this.variableSerializers = variableSerializers;
-  }
+    public void setVariableSerializers(VariableSerializers variableSerializers) {
+        this.variableSerializers = variableSerializers;
+    }
 
-  /**
-   * <p>Provides the default Process Engine name to deploy to, if no Process Engine
-   * was defined in <code>processes.xml</code>.</p>
-   *
-   * @return the default deploy-to Process Engine name.
-   *         The default value is "default".
-   */
-  public String getDefaultDeployToEngineName() {
-    return defaultDeployToEngineName;
-  }
+    /**
+     * <p>Provides the default Process Engine name to deploy to, if no Process Engine
+     * was defined in <code>processes.xml</code>.</p>
+     *
+     * @return the default deploy-to Process Engine name.
+     *         The default value is "default".
+     */
+    public String getDefaultDeployToEngineName() {
+        return defaultDeployToEngineName;
+    }
 
-  /**
-   * <p>Programmatically set the name of the Process Engine to deploy to if no Process Engine
-   * is defined in <code>processes.xml</code>. This allows to circumvent the "default" Process
-   * Engine name and set a custom one.</p>
-   *
-   * @param defaultDeployToEngineName
-   */
-  protected void setDefaultDeployToEngineName(String defaultDeployToEngineName) {
-    this.defaultDeployToEngineName = defaultDeployToEngineName;
-  }
+    /**
+     * <p>Programmatically set the name of the Process Engine to deploy to if no Process Engine
+     * is defined in <code>processes.xml</code>. This allows to circumvent the "default" Process
+     * Engine name and set a custom one.</p>
+     *
+     * @param defaultDeployToEngineName
+     */
+    protected void setDefaultDeployToEngineName(String defaultDeployToEngineName) {
+        this.defaultDeployToEngineName = defaultDeployToEngineName;
+    }
 }
