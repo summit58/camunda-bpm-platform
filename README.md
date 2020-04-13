@@ -1,3 +1,21 @@
+Summit58 BPM  Enhancements to Camunda BPM
+==========================================
+
+The following significant enhancements have been added to Camunda BPM Community Edition version `7.12.0` in Summit58's version `7.12.2`:
+
+1. Support for the use of GraalVM's Graal.JS for JavaScript execution. Nashorn - the built-in JavaScript engine in Java 8 (and later) - is deprecated and marked for deletion. Note that you can still use Nashorn with version `7.12.2`; this simply makes it possible to use Graal.JS by dropping in the necessary JAR files in the application server's `lib` directory or - if using Spring Boot - by including them in your Maven `pom.xml` file.
+2. Support for CockroachDB. Actually, Camunda BPM version `7.12.0` will work with more recent versions of CockroachDB by simply removing three recursive foreign keys from the standard engine SQL creation script for Postgres (see below); version `7.12.2` simply adds support for older, legacy versions of CockroachDB, such as version `19.1.1`.
+
+To enable CockroachDB support, remove the following three recursive, foreign keys from the engine database creation script for PostgreSQL:
+
+* ACT_IDX_EXE_PROCINST
+* ACT_IDX_EXE_PARENT
+* ACT_IDX_EXE_SUPER
+
+These recursive, foreign keys may work with future versions of CockroachDB, but they don't work as of version `19.2.5`.
+
+If you have any questions or would like to engage us to make further modifications of the Camunda BPM platform for your use case, please contact us at <info@summit58.co>.
+
 camunda BPM - The open source BPM platform
 ==========================================
 
